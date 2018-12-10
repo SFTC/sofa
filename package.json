@@ -1,0 +1,25 @@
+{
+  "name": "sofa",
+  "version": "1.0.0",
+  "description": "## 开发注意事项",
+  "main": "index.js",
+  "bin": {
+    "sofa": "sofa.js"
+  },
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SFTC/sofa.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SFTC/sofa/issues"
+  },
+  "homepage": "https://github.com/SFTC/sofa#readme"
+}
