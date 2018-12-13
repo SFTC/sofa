@@ -17,10 +17,33 @@ const sofaConfig = require('../lib/sofaConfig.js');
 const fs = require('fs');
 const path = require('path');
 const inquirer = require('inquirer');
+const Metalsmith = require('metalsmith');
+const utils = require('../lib/utils');
+const async = require('async');
+const consolidate = require('consolidate')
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
+// 与用户交互获取的配置值
+const createPageConfig = {}; // pageName templatePath templateName parentKey
+
+readSyncByRl('请输入页面名称').then((name) => {
+  if (typeof(name) === 'string') {
+    confirm('是否确认页面名称为' + name + '?').then((result) => {
+      if (result) {
+        // 2, 借助sofaConfig获取pageTemplatePath;
+        createPageConfig.pageName = name;
+        const templateFolderPath = path.resolve(process.cwd()) + '/' + sofaConfig.getConfig('pageTemplatePath');
+        listTheTemplates(templateFolderPath).then(() => {
+          const { pageName, templatePath, templateName, parentKey } = createPageConfig;
+          generatePage(pageName, templatePath, templateName, parentKey || null);
+        });
+        // console.log('*************创建完成***********');
+        // process.exit(0);
+        // return;
+      }
+      // console.log('*************结束***************');
+      // process.exit(0);
+    });
+  }
 });
 
 function readSyncByRl(tips) {
@@ -49,61 +72,101 @@ function confirm(message) {
   });
 }
 
-readSyncByRl('请输入页面名称').then((name) => {
-  if (typeof(name) === 'string') {
-    confirm('是否确认页面名称为' + name + '?').then((result) => {
-      if (result) {
-        // 2, 借助sofaConfig获取pageTemplatePath;
-        const templateFolderPath = path.resolve(process.cwd()) + '/' +sofaConfig.getConfig('pageTemplatePath');
-        console.log(templateFolderPath);
-        listTheTemplates(templateFolderPath);
-        // console.log('*************创建完成***********');
-        // process.exit(0);
-        // return;
-      }
-      // console.log('*************结束***************');
-      // process.exit(0);
-    });
-  }
-});
 // 3. 列出所有模板选择 4. 是否有父级，指定父级key
-function listTheTemplates(templatePath) {
-  const arr = [];
-  const files = fs.readdirSync(templatePath);
-  files.forEach(function (item, index) {
-      const stat = fs.lstatSync(path.join(templatePath, item));
-      if (stat.isDirectory() === true) { 
-        arr.push(item)
-      }
-  });
-  inquirer.prompt([{
-    type: 'list',
-    message: '请选择要复制的模板',
-    choices: arr,
-    name: 'template',
-  }]).then(({ template }) => {
-    console.log(path.join(templatePath, template));
+function listTheTemplates(templatePath) { 
+  return new Promise((resolve) => {
+    const arr = [];
+    const files = fs.readdirSync(templatePath);
+    files.forEach(function (item, index) {
+        const stat = fs.lstatSync(path.join(templatePath, item));
+        if (stat.isDirectory() === true) { 
+          arr.push(item)
+        }
+    });
     inquirer.prompt([{
-      type: 'confirm',
-      message: '该页面是否有父级？',
-      name: 'type'
-    }]).then(({ type }) => {
-      console.log(type);
-      if (type) {
-        inquirer.prompt([{
-          type: 'input',
-          message: '请输入父模块的key值: ',
-          name: 'parent'
-        }]).then(({ parent }) => {
-          if (parent) {
-            // runGeneratePage(templateInfo, parent, pageName, author, parent)
-            console.log(parent);
-          }
-        })
+      type: 'list',
+      message: '请选择要复制的模板',
+      choices: arr,
+      name: 'template',
+    }]).then(({ template }) => {
+      createPageConfig.templatePath = templatePath;
+      createPageConfig.templateName = template;
+      inquirer.prompt([{
+        type: 'confirm',
+        message: '该页面是否有父级？',
+        name: 'type'
+      }]).then(({ type }) => {
+        if (type) {
+          inquirer.prompt([{
+            type: 'input',
+            message: '请输入父模块的key值: ',
+            name: 'parent'
+          }]).then(({ parent }) => {
+            if (parent) {
+              createPageConfig.parentKey = parent;
+              resolve();
+            }
+          })
+        } else {
+          resolve();
+        }
+      })
+    });
+  });
+}
+
+
+// 5. 拷贝文件，获取用户git信息，嵌入注释；
+function generatePage(pageName, templatePath, templateName, parentKey) {
+  const templateFullPath = path.resolve(templatePath + '/' + templateName);
+  const metalsmith = Metalsmith(templateFullPath);
+  var metadata = metalsmith.metadata();
+  const destination = path.resolve(templatePath + '/' + utils.getHeadUpperName(pageName));
+  metadata.templateName = templateName;
+  metadata.pageNameUpper = utils.getHeadUpperName(pageName);
+  console.log(metalsmith);
+  console.log(destination);
+  metalsmith.clean(false)
+    .use(updateContent)
+    .source('.')
+    .destination(destination)
+    .build((err, files) => {
+      if (err) {
+        console.log(err);
       } else {
-        // runGeneratePage(templateInfo, null, pageName, author, '无')
+        // console.log('Finish copy')
+        // if (metadata.moduleName) {
+        //   updateAttachedContent('page', metadata)
+        //   console.log(11111);
+        // } else {
+        //   updateAttachedContent('module', metadata)
+        //   console.log(2222);
+        // }
+        console.log(6666);
       }
     })
-  });
-  // return arr;
+}
+
+function updateContent(files, metalsmith, callback) {
+  var keys = Object.keys(files);
+  var metadata = metalsmith.metadata();
+  async.each(keys, run, callback);
+
+  function run(file, callback){
+    var str = files[file].contents.toString();
+    console.log(file)
+    // 加注释
+    // str = generateComment(metadata).concat(str);
+    consolidate.ejs.render(str, metadata, function(err, res){
+      if (err) {
+        console.log('wrong', file, err);
+        return callback(err);
+      }
+      console.log('success', file);
+      res = res.replace(new RegExp(metadata.templateName, 'g'), metadata.pageNameUpper);
+      files[file].contents = new Buffer(res);
+      console.log(res);
+      callback();
+    });
+  }
 }
