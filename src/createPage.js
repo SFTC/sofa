@@ -20,7 +20,8 @@ const inquirer = require('inquirer');
 const Metalsmith = require('metalsmith');
 const utils = require('../lib/utils');
 const async = require('async');
-const consolidate = require('consolidate')
+const consolidate = require('consolidate');
+const gitInfo = require('../lib/git');
 
 // 与用户交互获取的配置值
 const createPageConfig = {}; // pageName templatePath templateName parentKey
@@ -115,7 +116,6 @@ function listTheTemplates(templatePath) {
   });
 }
 
-
 // 5. 拷贝文件，获取用户git信息，嵌入注释；
 function generatePage(pageName, templatePath, templateName, parentKey) {
   const templateFullPath = path.resolve(templatePath + '/' + templateName);
@@ -124,9 +124,15 @@ function generatePage(pageName, templatePath, templateName, parentKey) {
   const destination = path.resolve(templatePath + '/' + utils.getHeadUpperName(pageName));
   metadata.templateName = templateName;
   metadata.pageNameUpper = utils.getHeadUpperName(pageName);
-  console.log(metalsmith);
-  console.log(destination);
-  metalsmith.clean(false)
+  metadata.moduleName = parentKey;
+  // 获取git信息
+  gitInfo(['user'], (err, result) => {
+    const user = result ? result.user : null;
+    console.log(`<${user}>`);
+    metadata.author = `<${user}>`;
+  }).then(() => {
+    console.log(destination);
+    metalsmith.clean(false)
     .use(updateContent)
     .source('.')
     .destination(destination)
@@ -134,7 +140,7 @@ function generatePage(pageName, templatePath, templateName, parentKey) {
       if (err) {
         console.log(err);
       } else {
-        // console.log('Finish copy')
+        console.log('Finish copy')
         // if (metadata.moduleName) {
         //   updateAttachedContent('page', metadata)
         //   console.log(11111);
@@ -142,21 +148,33 @@ function generatePage(pageName, templatePath, templateName, parentKey) {
         //   updateAttachedContent('module', metadata)
         //   console.log(2222);
         // }
-        console.log(6666);
       }
     })
+  });
 }
 
 function updateContent(files, metalsmith, callback) {
   var keys = Object.keys(files);
   var metadata = metalsmith.metadata();
+  console.log(metadata);
   async.each(keys, run, callback);
 
   function run(file, callback){
     var str = files[file].contents.toString();
-    console.log(file)
+    // 解决双注释的问题
+    if (str.indexOf('/**') === 0) {
+      str = str.split('\n').slice(8).join('\n');
+    }
     // 加注释
-    // str = generateComment(metadata).concat(str);
+    var commentData = {
+      componentName: file.split('.')[0],
+      date: new Date(),
+      author: metadata.author,
+      templateName: metadata.templateName,
+      pageChineseName: '',
+      moduleName: metadata.moduleName || '无',
+    };
+    str = generateComment(commentData).concat(str);
     consolidate.ejs.render(str, metadata, function(err, res){
       if (err) {
         console.log('wrong', file, err);
@@ -165,8 +183,22 @@ function updateContent(files, metalsmith, callback) {
       console.log('success', file);
       res = res.replace(new RegExp(metadata.templateName, 'g'), metadata.pageNameUpper);
       files[file].contents = new Buffer(res);
-      console.log(res);
       callback();
     });
   }
+}
+
+function generateComment(data) {
+  const commentsData = {};
+  commentsData.author = data.author;
+  commentsData.date = data.date;
+  commentsData.componentName = data.componentName;
+  commentsData.templateName = data.templateName;
+  commentsData.pageChineseName = data.pageChineseName;
+  commentsData.moduleName = data.moduleName;
+  let commentStr = '/**\n';
+  Object.keys(commentsData).forEach(item => {
+    commentStr += ` * ${item}: ${commentsData[item]}\n`; 
+  })
+  return `${commentStr} */\n`;
 }
