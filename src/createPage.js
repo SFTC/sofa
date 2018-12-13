@@ -14,18 +14,24 @@
 // 1，获取输入的页面名称
 const readline = require('readline');
 const sofaConfig = require('../lib/sofaConfig.js');
-
+const fs = require('fs');
 const path = require('path');
+const inquirer = require('inquirer');
+
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
 });
+
 function readSyncByRl(tips) {
   tips = tips + '>' || '> ';
   return new Promise((resolve) => {
-    rl.question(tips, (answer) => {
-      // rl.close();
-      resolve(answer.trim());
+    inquirer.prompt([{
+      type: 'input',
+      message: tips,
+      name: 'name'
+    }]).then((result) => {
+      resolve(result.name);
     });
   });
 }
@@ -33,11 +39,12 @@ function readSyncByRl(tips) {
 function confirm(message) {
   message = message + '(y/n)' || '是否确认?' + '(y/n)';
   return new Promise((resolve) => {
-    rl.question(message, (answer) => {
-      if (answer === 'y') {
-        resolve(true);
-      }
-      resolve(false);
+    inquirer.prompt([{
+      type: 'confirm',
+      message,
+      name: 'name'
+    }]).then((name) => {
+      resolve(name);
     });
   });
 }
@@ -49,12 +56,54 @@ readSyncByRl('请输入页面名称').then((name) => {
         // 2, 借助sofaConfig获取pageTemplatePath;
         const templateFolderPath = path.resolve(process.cwd()) + '/' +sofaConfig.getConfig('pageTemplatePath');
         console.log(templateFolderPath);
-        console.log('*************创建完成***********');
-        process.exit(0);
-        return;
+        listTheTemplates(templateFolderPath);
+        // console.log('*************创建完成***********');
+        // process.exit(0);
+        // return;
       }
-      console.log('*************结束***************');
-      process.exit(0);
+      // console.log('*************结束***************');
+      // process.exit(0);
     });
   }
 });
+// 3. 列出所有模板选择 4. 是否有父级，指定父级key
+function listTheTemplates(templatePath) {
+  const arr = [];
+  const files = fs.readdirSync(templatePath);
+  files.forEach(function (item, index) {
+      const stat = fs.lstatSync(path.join(templatePath, item));
+      if (stat.isDirectory() === true) { 
+        arr.push(item)
+      }
+  });
+  inquirer.prompt([{
+    type: 'list',
+    message: '请选择要复制的模板',
+    choices: arr,
+    name: 'template',
+  }]).then(({ template }) => {
+    console.log(path.join(templatePath, template));
+    inquirer.prompt([{
+      type: 'confirm',
+      message: '该页面是否有父级？',
+      name: 'type'
+    }]).then(({ type }) => {
+      console.log(type);
+      if (type) {
+        inquirer.prompt([{
+          type: 'input',
+          message: '请输入父模块的key值: ',
+          name: 'parent'
+        }]).then(({ parent }) => {
+          if (parent) {
+            // runGeneratePage(templateInfo, parent, pageName, author, parent)
+            console.log(parent);
+          }
+        })
+      } else {
+        // runGeneratePage(templateInfo, null, pageName, author, '无')
+      }
+    })
+  });
+  // return arr;
+}
