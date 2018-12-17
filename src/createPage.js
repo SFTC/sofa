@@ -18,15 +18,42 @@ const fs = require('fs');
 const path = require('path');
 const inquirer = require('inquirer');
 const Metalsmith = require('metalsmith');
-const utils = require('../lib/utils');
+const fileName = require('../lib/fileName');
 const async = require('async');
 const consolidate = require('consolidate');
 const gitInfo = require('../lib/git');
-// const esprima = require('esprima');
+const comment = require('../lib/comment');
 const updateRelatedContent = require('../lib/updateRelatedContent');
 
 // 与用户交互获取的配置值
 const createPageConfig = {}; // pageName templatePath templateName parentKey
+
+// 交互-输入
+function readSyncByRl(tips) {
+  tips = tips + '>' || '> ';
+  return new Promise((resolve) => {
+    inquirer.prompt([{
+      type: 'input',
+      message: tips,
+      name: 'name'
+    }]).then((result) => {
+      resolve(result.name);
+    });
+  });
+}
+// 交互-确认
+function confirm(message) {
+  message = message + '(y/n)' || '是否确认?' + '(y/n)';
+  return new Promise((resolve) => {
+    inquirer.prompt([{
+      type: 'confirm',
+      message,
+      name: 'name'
+    }]).then((name) => {
+      resolve(name);
+    });
+  });
+}
 
 readSyncByRl('请输入页面名称').then((name) => {
   if (typeof(name) === 'string') {
@@ -51,32 +78,6 @@ readSyncByRl('请输入页面名称').then((name) => {
     });
   }
 });
-
-function readSyncByRl(tips) {
-  tips = tips + '>' || '> ';
-  return new Promise((resolve) => {
-    inquirer.prompt([{
-      type: 'input',
-      message: tips,
-      name: 'name'
-    }]).then((result) => {
-      resolve(result.name);
-    });
-  });
-}
-
-function confirm(message) {
-  message = message + '(y/n)' || '是否确认?' + '(y/n)';
-  return new Promise((resolve) => {
-    inquirer.prompt([{
-      type: 'confirm',
-      message,
-      name: 'name'
-    }]).then((name) => {
-      resolve(name);
-    });
-  });
-}
 
 // 3. 列出所有模板选择 4. 是否有父级，指定父级key
 function listTheTemplates(templatePath) { 
@@ -126,9 +127,9 @@ function generatePage(pageName, templatePath, templateName, parentKey) {
   const templateFullPath = path.resolve(templatePath + '/' + templateName);
   const metalsmith = Metalsmith(templateFullPath);
   var metadata = metalsmith.metadata();
-  const destination = path.resolve(templatePath + '/' + utils.getHeadUpperName(pageName));
+  const destination = path.resolve(templatePath + '/' + fileName.getHeadUpperName(pageName));
   metadata.templateName = templateName;
-  metadata.pageNameUpper = utils.getHeadUpperName(pageName);
+  metadata.pageNameUpper = fileName.getHeadUpperName(pageName);
   metadata.moduleName = parentKey;
   // 获取git信息
   gitInfo(['user'], (err, result) => {
@@ -147,7 +148,7 @@ function generatePage(pageName, templatePath, templateName, parentKey) {
       } else {
         console.log('Finish copy')
         // 7. 处理Menu及国际化相关
-        updateMenuContent(metadata.moduleName ? 'page' : 'module', createPageConfig).then((result) => {
+        updateRelatedContent(metadata.moduleName ? 'page' : 'module', createPageConfig).then((result) => {
           console.log('menu commonMessages结束');
         });
       }
@@ -162,20 +163,9 @@ function updateContent(files, metalsmith, callback) {
 
   function run(file, callback){
     var str = files[file].contents.toString();
-    // 解决双注释的问题
-    if (str.indexOf('/**') === 0) {
-      str = str.split('\n').slice(8).join('\n');
-    }
+    str = comment.removeDuplicate(str);
     // 加注释
-    var commentData = {
-      componentName: file.split('.')[0],
-      date: new Date(),
-      author: createPageConfig.author,
-      templateName: createPageConfig.templateName,
-      pageChineseName: createPageConfig.pageChineseName,
-      moduleName: createPageConfig.key || '无',
-    };
-    str = generateComment(commentData).concat(str);
+    str = comment.generateComment(file, createPageConfig).concat(str);
     consolidate.ejs.render(str, metadata, function(err, res){
       if (err) {
         console.log('wrong', file, err);
@@ -183,36 +173,12 @@ function updateContent(files, metalsmith, callback) {
       }
       console.log('success', file);
       // 6. 替换 KeyWord、keyWord、keyword、KEYWORD等多种情形
-      res = res.replace(new RegExp(utils.getHeadUpperName(metadata.templateName), 'g'), utils.getHeadUpperName(createPageConfig.pageName))
-               .replace(new RegExp(utils.getHeadLower(metadata.templateName), 'g'), utils.getHeadLower(metadata.pageNameUpper))
-               .replace(new RegExp(utils.getFullUpper(metadata.templateName), 'g'), utils.getFullUpper(metadata.pageNameUpper))
-               .replace(new RegExp(utils.getFullLower(metadata.templateName), 'g'), utils.getFullLower(metadata.pageNameUpper))
+      res = res.replace(new RegExp(fileName.getHeadUpperName(metadata.templateName), 'g'), fileName.getHeadUpperName(createPageConfig.pageName))
+               .replace(new RegExp(fileName.getHeadLower(metadata.templateName), 'g'), fileName.getHeadLower(metadata.pageNameUpper))
+               .replace(new RegExp(fileName.getFullUpper(metadata.templateName), 'g'), fileName.getFullUpper(metadata.pageNameUpper))
+               .replace(new RegExp(fileName.getFullLower(metadata.templateName), 'g'), fileName.getFullLower(metadata.pageNameUpper))
       files[file].contents = new Buffer(res);
       callback();
     });
   }
 }
-// 产生注释
-function generateComment(data) {
-  const commentsData = {};
-  commentsData.author = data.author;
-  commentsData.date = data.date;
-  commentsData.componentName = data.componentName;
-  commentsData.templateName = data.templateName;
-  commentsData.pageChineseName = data.pageChineseName;
-  commentsData.moduleName = data.moduleName;
-  let commentStr = '/**\n';
-  Object.keys(commentsData).forEach(item => {
-    commentStr += ` * ${item}: ${commentsData[item]}\n`;
-  })
-  return `${commentStr} */\n`;
-}
-
-// function updateMenuContent(mode, data) {
-//   console.log(data);
-//   console.log(createPageConfig);
-//   const docPath = path.resolve(process.cwd(), 'src/config/menu.conf.js');
-//   var content  = fs.readFileSync(docPath, 'utf-8');
-//   var ast = esprima.parseModule(content);
-//   console.log(ast);
-// }
