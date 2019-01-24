@@ -19,10 +19,11 @@ const Git = require("nodegit");
 const Metalsmith = require('metalsmith');
 const async = require('async')
 const consolidate = require('consolidate');
-const format = require("prettier-eslint");
+const { exec } = require('child_process');
 
 const config = require('../conf/default.config');
 const toolConfig = require('../conf/tool.config');
+const sofaConfig = require('../lib/sofaConfig');
 
 // step1. 与用户交互获取，项目名称、主题色、开发端口等信息；
 function inquireUser() {
@@ -41,9 +42,9 @@ function inquireUser() {
         type: 'input',
         message: 'Please enter the theme color of the project',
         default: config.theme,
-        name: 'subjectColor',
-      }]).then(({ subjectColor }) => {
-        projectConfig.subjectColor = subjectColor;
+        name: 'theme',
+      }]).then(({ theme }) => {
+        projectConfig.theme = theme;
         // 开发端口
         inquirer.prompt([{
           type: 'input',
@@ -89,35 +90,6 @@ function filter(files, metalsmith, callback) {
 
 // step4. 替换关键词ProjectName，这里需要注意替换 KeyWord、keyWord、keyword、KEYWORD等多种情形；
 function runGeneratePage(projectConfig) {
-  // const projectPath = `./${projectConfig.projectName}`;
-  // const metalsmith = Metalsmith(projectPath);
-  // const metadata = metalsmith.metadata();
-  // const to =path.join(process.cwd(), projectConfig.projectName, 'public');
-  // console.log('to: ', to);
-  // metadata.template = toolConfig.templateName;
-  // console.log('metadata.template: ', metadata.template);
-  // metadata.projectName = projectConfig.projectName;
-  // console.log('metadata.projectName: ', metadata.projectName);
-  // if (metadata.template !== metadata.projectName) {
-  //   metalsmith.clean(false)
-  //   .use(filter)
-  //   .use(updateContent)
-  //   .source('./public')
-  //   .destination(to)
-  //   .build((err, files) => {
-  //     console.log('files: ', files);
-  //     if (err) {
-  //       console.log(err);
-  //     } else {
-  //       console.log('Finish copy')
-  //       if (metadata.moduleName) {
-  //         // updateAttachedContent('page', metadata)
-  //       } else {
-  //         // updateAttachedContent('module', metadata)
-  //       }
-  //     }
-  //   })
-  // }
   const README = `./${projectConfig.projectName}/README.md`;
   const package = `./${projectConfig.projectName}/package.json`;
   const files = [README, package];
@@ -136,6 +108,49 @@ function runGeneratePage(projectConfig) {
   })
 }
 
+// step5. 将用户交互信息生成并写入sofa.config.js；
+function setUserConfig(projectConfig) {
+  sofaConfig.setConfig('projectName', projectConfig.projectName);
+  sofaConfig.setConfig('port', projectConfig.port);
+  sofaConfig.setConfig('theme', projectConfig.theme);
+}
+
+// step6. 安装依赖；
+function installDependencies(projectConfig) {
+  return new Promise((resolve) => {
+    // 在工程里执行npm install命令
+    console.log(chalk.red('安装依赖...'));
+    exec('npm install', { cwd: path.join(process.cwd(), projectConfig.projectName) }, (err, stdout, stderr) => {
+        if(err) {
+          console.log(err);
+          resolve('fail');
+          return;
+        }
+        console.log(chalk.red('依赖安装成功'));
+        resolve('success');
+        console.log(`stdout: ${stdout}`);
+    });
+  });
+}
+
+// step7. 运行npm run start命令；
+function startProject(projectConfig) {
+  return new Promise((resolve) => {
+    // 在工程里执行npm install命令
+    console.log(chalk.red('正在启动...'));
+    exec('npm start', { cwd: path.join(process.cwd(), projectConfig.projectName) }, (err, stdout, stderr) => {
+        if(err) {
+          console.log(err);
+          resolve('fail');
+          return;
+        }
+        console.log(chalk.red('启动成功'));
+        resolve('success');
+        console.log(`stdout: ${stdout}`);
+    });
+  });
+}
+
 function generateProject() {
   inquireUser().then((projectConfig) => {
     // step2. 读取tool.config.js中的projectTemplatePath；
@@ -144,7 +159,12 @@ function generateProject() {
     console.log(chalk.red(`正在从${gitPath}上拉取代码，请稍后......`));
     Git.Clone(gitPath, `./${projectConfig.projectName}`).then(function(repo) {
       runGeneratePage(projectConfig);
-      // step5. 将用户交互信息生成并写入sofa.config.js；
+      setUserConfig(projectConfig);
+      installDependencies(projectConfig).then((msg) => {
+        if (msg === 'success') {
+          startProject(projectConfig);
+        }
+      });
     })
   });
 }
