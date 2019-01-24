@@ -7,7 +7,7 @@ const generateComponent = require('./src/createComponent');
 const generateProject = require('./src/createPage');
 const sofaConfig = require('./lib/sofaConfig.js');
 
-sofaConfig.getConfig();
+sofaConfig.setConfig('port', '8086');
 
 commander
   .version('0.1.9')
