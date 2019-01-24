@@ -26,4 +26,3 @@ if (commander.component) {
 if (commander.project) {
   generateProject(commander.project);
 }
-

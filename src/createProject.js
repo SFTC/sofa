@@ -15,15 +15,12 @@ const chalk = require('chalk')
 const inquirer = require('inquirer')
 const fs = require('fs');
 const path = require('path');
-const commander = require('commander');
-var Git = require("nodegit");
-
-// const user = require('../lib/user');
+const Git = require("nodegit");
+const Metalsmith = require('metalsmith');
+const async = require('async')
+const consolidate = require('consolidate')
 const config = require('../conf/default.config');
 const toolConfig = require('../conf/tool.config');
-// const runGenerateProject = require('./page');
-// const Template = require('../../utils/template');
-
 
 // step1. 与用户交互获取，项目名称、主题色、开发端口等信息；
 function inquireUser() {
@@ -40,7 +37,7 @@ function inquireUser() {
       // 主题色
       inquirer.prompt([{
         type: 'input',
-        message: 'Please enter the subject color of the project',
+        message: 'Please enter the theme color of the project',
         default: config.theme,
         name: 'subjectColor',
       }]).then(({ subjectColor }) => {
@@ -60,57 +57,78 @@ function inquireUser() {
   });
 }
 
-function generateProject(pageName) {
+function updateContent(files, metalsmith, callback){
+  var keys = Object.keys(files);
+  var metadata = metalsmith.metadata();
+  async.each(keys, run, callback);
+
+  function run(file, callback){
+    if (file.indexOf('src') === -1 && file.indexOf('.git') === -1) {
+      var str = files[file].contents.toString();
+      consolidate.ejs.render(str, metadata, function(err, res){
+        if (err) {
+          console.log('wrong', file, err);
+          return callback(err);
+        }
+        console.log('success', file);
+        res = res.replace(new RegExp(metadata.template, 'g'), metadata.projectName);
+        files[file].contents = new Buffer(res);
+        callback();
+      });
+    }
+  }
+}
+
+function filter(files, metalsmith, callback) {
+  var filter = ['.DS_Store'];
+  delete files[filter[0]];
+  callback()
+}
+
+// step4. 替换关键词ProjectName，这里需要注意替换 KeyWord、keyWord、keyword、KEYWORD等多种情形；
+function runGeneratePage(projectConfig) {
+  const projectPath = `./${projectConfig.projectName}`;
+  const metalsmith = Metalsmith(projectPath);
+  const metadata = metalsmith.metadata();
+  const to =path.join(process.cwd(), projectConfig.projectName, 'public');
+  console.log('to: ', to);
+  metadata.template = toolConfig.templateName;
+  console.log('metadata.template: ', metadata.template);
+  metadata.projectName = projectConfig.projectName;
+  console.log('metadata.projectName: ', metadata.projectName);
+  if (metadata.template !== metadata.projectName) {
+    metalsmith.clean(false)
+    .use(filter)
+    .use(updateContent)
+    .source('./public')
+    .destination(to)
+    .build((err, files) => {
+      if (err) {
+        console.log(err);
+      } else {
+        console.log('Finish copy')
+        if (metadata.moduleName) {
+          // updateAttachedContent('page', metadata)
+        } else {
+          // updateAttachedContent('module', metadata)
+        }
+      }
+    })
+  }
+}
+
+function generateProject() {
   inquireUser().then((projectConfig) => {
     // step2. 读取tool.config.js中的projectTemplatePath；
     const gitPath = toolConfig.projectTemplatePath;
     // step3. 拉取模板文件，拷贝文件，获取用户git信息，嵌入注释；
     console.log(chalk.red(`正在从${gitPath}上拉取代码，请稍后......`));
-    Git.Clone(gitPath, `./${projectConfig.projectName}`).then(function(repo) {
-      console.log(chalk.red('代码下载完毕！'));
-      console.log('repo: ', repo);
-      return repo.getMasterCommit();
-    })
+    // Git.Clone(gitPath, `./${projectConfig.projectName}`).then(function(repo) {
+    //   runGeneratePage(projectConfig);
+    //   console.log(chalk.red('代码下载完毕！'));
+    // })
+    runGeneratePage(projectConfig);
   });
-
-
-  // user.getUserInfo().then((author) => {
-  //   const templatesInfo = Template.getTemplateInfo(Template.checkTemplateVersion(), config.pagePath);
-  //   if (templatesInfo && templatesInfo.templates) {
-  //     inquirer.prompt([{
-  //       type: 'list',
-  //       message: 'Please choose the template',
-  //       default: config.defaultPageTemplate,
-  //       choices: templatesInfo.templates,
-  //       name: 'template',
-  //     }]).then(({ template }) => {
-  //       const templateInfo = {
-  //         template: template,
-  //         packagePath: templatesInfo.packagePath,
-  //       };
-
-  //       inquirer.prompt([{
-  //         type: 'confirm',
-  //         message: 'Does it has a parent module?',
-  //         name: 'type'
-  //       }]).then(({ type }) => {
-  //         if (type) {
-  //           inquirer.prompt([{
-  //             type: 'input',
-  //             message: 'Please enter the parent module key: ',
-  //             name: 'parent'
-  //           }]).then(({ parent }) => {
-  //             if (parent) {
-  //               runGenerateProject(templateInfo, parent, pageName, author, parent)
-  //             }
-  //           })
-  //         } else {
-  //           runGenerateProject(templateInfo, null, pageName, author, '无')
-  //         }
-  //       })
-  //     })
-  //   }
-  // })
 }
 
 module.exports = generateProject;

@@ -23,11 +23,15 @@
   },
   "homepage": "https://github.com/SFTC/sofa#readme",
   "dependencies": {
+    "async": "^2.6.1",
     "chalk": "^2.4.2",
     "commander": "^2.19.0",
+    "consolidate": "^0.15.1",
+    "ejs": "^2.6.1",
     "escodegen": "^1.11.0",
     "esprima": "^4.0.1",
     "estraverse": "^4.2.0",
+    "metalsmith": "^2.3.0",
     "nodegit": "^0.24.0"
   },
   "devDependencies": {
