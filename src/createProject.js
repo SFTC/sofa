@@ -18,7 +18,9 @@ const path = require('path');
 const Git = require("nodegit");
 const Metalsmith = require('metalsmith');
 const async = require('async')
-const consolidate = require('consolidate')
+const consolidate = require('consolidate');
+const format = require("prettier-eslint");
+
 const config = require('../conf/default.config');
 const toolConfig = require('../conf/tool.config');
 
@@ -87,34 +89,51 @@ function filter(files, metalsmith, callback) {
 
 // step4. 替换关键词ProjectName，这里需要注意替换 KeyWord、keyWord、keyword、KEYWORD等多种情形；
 function runGeneratePage(projectConfig) {
-  const projectPath = `./${projectConfig.projectName}`;
-  const metalsmith = Metalsmith(projectPath);
-  const metadata = metalsmith.metadata();
-  const to =path.join(process.cwd(), projectConfig.projectName, 'public');
-  console.log('to: ', to);
-  metadata.template = toolConfig.templateName;
-  console.log('metadata.template: ', metadata.template);
-  metadata.projectName = projectConfig.projectName;
-  console.log('metadata.projectName: ', metadata.projectName);
-  if (metadata.template !== metadata.projectName) {
-    metalsmith.clean(false)
-    .use(filter)
-    .use(updateContent)
-    .source('./public')
-    .destination(to)
-    .build((err, files) => {
-      if (err) {
-        console.log(err);
-      } else {
-        console.log('Finish copy')
-        if (metadata.moduleName) {
-          // updateAttachedContent('page', metadata)
-        } else {
-          // updateAttachedContent('module', metadata)
-        }
+  // const projectPath = `./${projectConfig.projectName}`;
+  // const metalsmith = Metalsmith(projectPath);
+  // const metadata = metalsmith.metadata();
+  // const to =path.join(process.cwd(), projectConfig.projectName, 'public');
+  // console.log('to: ', to);
+  // metadata.template = toolConfig.templateName;
+  // console.log('metadata.template: ', metadata.template);
+  // metadata.projectName = projectConfig.projectName;
+  // console.log('metadata.projectName: ', metadata.projectName);
+  // if (metadata.template !== metadata.projectName) {
+  //   metalsmith.clean(false)
+  //   .use(filter)
+  //   .use(updateContent)
+  //   .source('./public')
+  //   .destination(to)
+  //   .build((err, files) => {
+  //     console.log('files: ', files);
+  //     if (err) {
+  //       console.log(err);
+  //     } else {
+  //       console.log('Finish copy')
+  //       if (metadata.moduleName) {
+  //         // updateAttachedContent('page', metadata)
+  //       } else {
+  //         // updateAttachedContent('module', metadata)
+  //       }
+  //     }
+  //   })
+  // }
+  const README = `./${projectConfig.projectName}/README.md`;
+  const package = `./${projectConfig.projectName}/package.json`;
+  const files = [README, package];
+  files.forEach((item) => {
+    if (fs.existsSync(item)) { 
+      let file = fs.readFileSync(item, 'utf-8');
+      console.log('file: ', file);
+      file = file.replace(new RegExp(toolConfig.templateName, 'g'), projectConfig.projectName);
+      try {
+        fs.writeFileSync(item, file);
+        console.log('修改成功', item)
+      } catch (error) {
+        console.log('修改失败', item);
       }
-    })
-  }
+    }
+  })
 }
 
 function generateProject() {
@@ -123,11 +142,10 @@ function generateProject() {
     const gitPath = toolConfig.projectTemplatePath;
     // step3. 拉取模板文件，拷贝文件，获取用户git信息，嵌入注释；
     console.log(chalk.red(`正在从${gitPath}上拉取代码，请稍后......`));
-    // Git.Clone(gitPath, `./${projectConfig.projectName}`).then(function(repo) {
-    //   runGeneratePage(projectConfig);
-    //   console.log(chalk.red('代码下载完毕！'));
-    // })
-    runGeneratePage(projectConfig);
+    Git.Clone(gitPath, `./${projectConfig.projectName}`).then(function(repo) {
+      runGeneratePage(projectConfig);
+      // step5. 将用户交互信息生成并写入sofa.config.js；
+    })
   });
 }
 
