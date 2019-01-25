@@ -25,7 +25,6 @@ const config = require('../conf/default.config');
 const toolConfig = require('../conf/tool.config');
 const sofaConfig = require('../lib/sofaConfig');
 
-// step1. 与用户交互获取，项目名称、主题色、开发端口等信息；
 function inquireUser() {
   return new Promise((resolve) => {
     const projectConfig = {};
@@ -88,10 +87,9 @@ function filter(files, metalsmith, callback) {
   callback()
 }
 
-// step4. 替换关键词ProjectName，这里需要注意替换 KeyWord、keyWord、keyword、KEYWORD等多种情形；
 function runGeneratePage(projectConfig) {
-  const README = `./${projectConfig.projectName}/README.md`;
-  const package = `./${projectConfig.projectName}/package.json`;
+  const README = `../${projectConfig.projectName}/README.md`;
+  const package = `../${projectConfig.projectName}/package.json`;
   const files = [README, package];
   files.forEach((item) => {
     if (fs.existsSync(item)) { 
@@ -108,19 +106,18 @@ function runGeneratePage(projectConfig) {
   })
 }
 
-// step5. 将用户交互信息生成并写入sofa.config.js；
 function setUserConfig(projectConfig) {
-  sofaConfig.setConfig('projectName', projectConfig.projectName);
-  sofaConfig.setConfig('port', projectConfig.port);
-  sofaConfig.setConfig('theme', projectConfig.theme);
+  const path = `../${projectConfig.projectName}`;
+  sofaConfig.setConfig('projectName', projectConfig.projectName, path);
+  sofaConfig.setConfig('port', projectConfig.port, path);
+  sofaConfig.setConfig('theme', projectConfig.theme, path);
 }
 
-// step6. 安装依赖；
 function installDependencies(projectConfig) {
   return new Promise((resolve) => {
     // 在工程里执行npm install命令
     console.log(chalk.red('安装依赖...'));
-    exec('npm install', { cwd: path.join(process.cwd(), projectConfig.projectName) }, (err, stdout, stderr) => {
+    exec('npm install', { cwd: `../${projectConfig.projectName}` }, (err, stdout, stderr) => {
         if(err) {
           console.log(err);
           resolve('fail');
@@ -133,12 +130,11 @@ function installDependencies(projectConfig) {
   });
 }
 
-// step7. 运行npm run start命令；
 function startProject(projectConfig) {
   return new Promise((resolve) => {
     // 在工程里执行npm install命令
     console.log(chalk.red('正在启动...'));
-    exec('npm start', { cwd: path.join(process.cwd(), projectConfig.projectName) }, (err, stdout, stderr) => {
+    exec('npm start', { cwd: `../${projectConfig.projectName}` }, (err, stdout, stderr) => {
         if(err) {
           console.log(err);
           resolve('fail');
@@ -152,16 +148,22 @@ function startProject(projectConfig) {
 }
 
 function generateProject() {
+  // step1. 与用户交互获取，项目名称、主题色、开发端口等信息；
   inquireUser().then((projectConfig) => {
     // step2. 读取tool.config.js中的projectTemplatePath；
     const gitPath = toolConfig.projectTemplatePath;
     // step3. 拉取模板文件，拷贝文件，获取用户git信息，嵌入注释；
     console.log(chalk.red(`正在从${gitPath}上拉取代码，请稍后......`));
-    Git.Clone(gitPath, `./${projectConfig.projectName}`).then(function(repo) {
+    Git.Clone(gitPath, `../${projectConfig.projectName}`).then(function(repo) {
+      console.log(chalk.red('代码下载完成！'));
+      // step4. 替换关键词ProjectName，这里需要注意替换 KeyWord、keyWord、keyword、KEYWORD等多种情形；
       runGeneratePage(projectConfig);
+      // step5. 将用户交互信息生成并写入sofa.config.js；
       setUserConfig(projectConfig);
+      // step6. 安装依赖；
       installDependencies(projectConfig).then((msg) => {
         if (msg === 'success') {
+          // step7. 运行npm run start命令；
           startProject(projectConfig);
         }
       });
