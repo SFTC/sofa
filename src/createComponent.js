@@ -1,6 +1,6 @@
 /**
  * 生成Component
- * 
+ *
  * step1. 与用户交互获取ComponentName;
  * step2. 在config中读取ProjectName;
  * step3. 以ComponentName+ProjectName在JsonStore中做重复性检测；
@@ -11,3 +11,25 @@
  * step8. 在Jsonstore中记录组件，ProjectName&ComponentName;
  * step9. 在Jsonstore中记录操作日志
  */
+const chalk = require('chalk');
+const copyTemplate = require('./copyTemplate');
+const JsonStore = require('../lib/jsonStore');
+
+
+function generateComponent(componentName) {
+  JsonStore.search(componentName).then((res) => {
+    if (res) { // create
+      copyTemplate(componentName).then(() => {
+        JsonStore.create(componentName);
+    }).catch((err) => {
+        console.log(err);
+    });
+    } else {
+      console.log(chalk.yellow(`${componentName} is already exist, please change a other name , or run *sofa -d ${componentName}* to delete the declare`));
+  }
+  }).catch((err) => {
+    console.log(err);
+  });
+}
+
+module.exports = generateComponent;
