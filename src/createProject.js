@@ -94,7 +94,6 @@ function runGeneratePage(projectConfig) {
   files.forEach((item) => {
     if (fs.existsSync(item)) { 
       let file = fs.readFileSync(item, 'utf-8');
-      console.log('file: ', file);
       file = file.replace(new RegExp(toolConfig.templateName, 'g'), projectConfig.projectName);
       try {
         fs.writeFileSync(item, file);
@@ -116,16 +115,16 @@ function setUserConfig(projectConfig) {
 function installDependencies(projectConfig) {
   return new Promise((resolve) => {
     // 在工程里执行npm install命令
-    console.log(chalk.red('安装依赖...'));
+    console.log(chalk.red('安装依赖......'));
     exec('npm install', { cwd: `../${projectConfig.projectName}` }, (err, stdout, stderr) => {
-        if(err) {
-          console.log(err);
-          resolve('fail');
-          return;
-        }
-        console.log(chalk.red('依赖安装成功'));
-        resolve('success');
-        console.log(`stdout: ${stdout}`);
+      if(err) {
+        console.log(err);
+        resolve('fail');
+        return;
+      }
+      console.log(chalk.red('依赖安装成功!'));
+      resolve('success');
+      console.log(`stdout: ${stdout}`);
     });
   });
 }
@@ -135,14 +134,14 @@ function startProject(projectConfig) {
     // 在工程里执行npm install命令
     console.log(chalk.red('正在启动...'));
     exec('npm start', { cwd: `../${projectConfig.projectName}` }, (err, stdout, stderr) => {
-        if(err) {
-          console.log(err);
-          resolve('fail');
-          return;
-        }
-        console.log(chalk.red('启动成功'));
-        resolve('success');
-        console.log(`stdout: ${stdout}`);
+      if(err) {
+        console.log(err);
+        resolve('fail');
+        return;
+      }
+      console.log(chalk.red('启动成功'));
+      resolve('success');
+      console.log(`stdout: ${stdout}`);
     });
   });
 }
