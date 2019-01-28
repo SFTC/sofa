@@ -147,27 +147,29 @@ function startProject(projectConfig) {
 }
 
 function generateProject() {
-  // step1. 与用户交互获取，项目名称、主题色、开发端口等信息；
-  inquireUser().then((projectConfig) => {
-    // step2. 读取tool.config.js中的projectTemplatePath；
-    const gitPath = toolConfig.projectTemplatePath;
-    // step3. 拉取模板文件，拷贝文件，获取用户git信息，嵌入注释；
-    console.log(chalk.red(`正在从${gitPath}上拉取代码，请稍后......`));
-    Git.Clone(gitPath, `../${projectConfig.projectName}`).then(function(repo) {
-      console.log(chalk.red('代码下载完成！'));
-      // step4. 替换关键词ProjectName，这里需要注意替换 KeyWord、keyWord、keyword、KEYWORD等多种情形；
-      runGeneratePage(projectConfig);
-      // step5. 将用户交互信息生成并写入sofa.config.js；
-      setUserConfig(projectConfig);
-      // step6. 安装依赖；
-      installDependencies(projectConfig).then((msg) => {
-        if (msg === 'success') {
-          // step7. 运行npm run start命令；
-          startProject(projectConfig);
-        }
-      });
-    })
-  });
+  user.getUserInfo().then((author) => {
+    // step1. 与用户交互获取，项目名称、主题色、开发端口等信息；
+    inquireUser().then((projectConfig) => {
+      // step2. 读取tool.config.js中的projectTemplatePath；
+      const gitPath = toolConfig.projectTemplatePath;
+      // step3. 拉取模板文件，拷贝文件，获取用户git信息，嵌入注释；
+      console.log(chalk.red(`正在从${gitPath}上拉取代码，请稍后......`));
+      Git.Clone(gitPath, `../${projectConfig.projectName}`).then(function(repo) {
+        console.log(chalk.red('代码下载完成！'));
+        // step4. 替换关键词ProjectName，这里需要注意替换 KeyWord、keyWord、keyword、KEYWORD等多种情形；
+        runGeneratePage(projectConfig);
+        // step5. 将用户交互信息生成并写入sofa.config.js；
+        setUserConfig(projectConfig);
+        // step6. 安装依赖；
+        installDependencies(projectConfig).then((msg) => {
+          if (msg === 'success') {
+            // step7. 运行npm run start命令；
+            startProject(projectConfig);
+          }
+        });
+      })
+    });
+  })
 }
 
 module.exports = generateProject;
