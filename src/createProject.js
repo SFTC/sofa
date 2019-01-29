@@ -145,11 +145,11 @@ function startProject(projectConfig) {
       console.log(`stdout: ${stdout}`);
     });
     workerProcess.stdout.on('data', function (data) {
+      console.log('stdout: ' + data);
       if (data.indexOf('webpack built') > -1) {
         console.log(chalk.red('启动成功'));
         resolve('success');
       }
-      console.log('stdout: ' + data);
     });
   
     workerProcess.stderr.on('data', function (data) {
