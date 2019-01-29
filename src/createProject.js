@@ -24,6 +24,8 @@ const { exec } = require('child_process');
 const config = require('../conf/default.config');
 const toolConfig = require('../conf/tool.config');
 const sofaConfig = require('../lib/sofaConfig');
+const jsonStore = require('../lib/jsonStore');
+const user = require('../lib/user');
 
 function inquireUser() {
   return new Promise((resolve) => {
@@ -133,15 +135,26 @@ function startProject(projectConfig) {
   return new Promise((resolve) => {
     // 在工程里执行npm install命令
     console.log(chalk.red('正在启动...'));
-    exec('npm start', { cwd: `../${projectConfig.projectName}` }, (err, stdout, stderr) => {
+    let workerProcess = exec('npm start', { cwd: `../${projectConfig.projectName}` }, (err, stdout, stderr) => {
       if(err) {
         console.log(err);
         resolve('fail');
         return;
       }
-      console.log(chalk.red('启动成功'));
       resolve('success');
       console.log(`stdout: ${stdout}`);
+    });
+    workerProcess.stdout.on('data', function (data) {
+      if (data.indexOf('webpack built') > -1) {
+        console.log(chalk.red('启动成功'));
+        resolve('success');
+      }
+      console.log('stdout: ' + data);
+    });
+  
+    workerProcess.stderr.on('data', function (data) {
+      console.log(chalk.red('启动失败'));
+      console.log('stderr: ' + data);
     });
   });
 }
@@ -154,7 +167,7 @@ function generateProject() {
       const gitPath = toolConfig.projectTemplatePath;
       // step3. 拉取模板文件，拷贝文件，获取用户git信息，嵌入注释；
       console.log(chalk.red(`正在从${gitPath}上拉取代码，请稍后......`));
-      Git.Clone(gitPath, `../${projectConfig.projectName}`).then(function(repo) {
+      Git.Clone(gitPath, `../${projectConfig.projectName}`).then((repo) => {
         console.log(chalk.red('代码下载完成！'));
         // step4. 替换关键词ProjectName，这里需要注意替换 KeyWord、keyWord、keyword、KEYWORD等多种情形；
         runGeneratePage(projectConfig);
@@ -164,7 +177,11 @@ function generateProject() {
         installDependencies(projectConfig).then((msg) => {
           if (msg === 'success') {
             // step7. 运行npm run start命令；
-            startProject(projectConfig);
+            startProject(projectConfig).then((startMsg) => {
+              projectConfig.author = author;
+              projectConfig.name = projectConfig.projectName;
+              jsonStore.create('projectName', projectConfig, false);
+            });
           }
         });
       })
