@@ -37,6 +37,10 @@ function inquireUser() {
       default: config.projectName,
       name: 'projectName',
     }]).then(({ projectName }) => {
+      if (fs.existsSync(`../${projectName}`)) {
+        console.log(chalk.red('该工程已存在，请重新创建！'));
+        return;
+      }
       projectConfig.projectName = projectName;
       // 主题色
       inquirer.prompt([{
@@ -59,34 +63,6 @@ function inquireUser() {
       })
     });
   });
-}
-
-function updateContent(files, metalsmith, callback){
-  var keys = Object.keys(files);
-  var metadata = metalsmith.metadata();
-  async.each(keys, run, callback);
-
-  function run(file, callback){
-    if (file.indexOf('src') === -1 && file.indexOf('.git') === -1) {
-      var str = files[file].contents.toString();
-      consolidate.ejs.render(str, metadata, function(err, res){
-        if (err) {
-          console.log('wrong', file, err);
-          return callback(err);
-        }
-        console.log('success', file);
-        res = res.replace(new RegExp(metadata.template, 'g'), metadata.projectName);
-        files[file].contents = new Buffer(res);
-        callback();
-      });
-    }
-  }
-}
-
-function filter(files, metalsmith, callback) {
-  var filter = ['.DS_Store'];
-  delete files[filter[0]];
-  callback()
 }
 
 function runGeneratePage(projectConfig) {
@@ -168,6 +144,7 @@ function generateProject() {
       // step3. 拉取模板文件，拷贝文件，获取用户git信息，嵌入注释；
       console.log(chalk.red(`正在从${gitPath}上拉取代码，请稍后......`));
       Git.Clone(gitPath, `../${projectConfig.projectName}`).then((repo) => {
+        console.log('repo: ', repo);
         console.log(chalk.red('代码下载完成！'));
         // step4. 替换关键词ProjectName，这里需要注意替换 KeyWord、keyWord、keyword、KEYWORD等多种情形；
         runGeneratePage(projectConfig);
