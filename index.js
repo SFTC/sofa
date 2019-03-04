@@ -4,7 +4,7 @@
 const commander = require('commander');
 const generatePage = require('./src/createPage');
 const generateComponent = require('./src/createComponent');
-const generateProject = require('./src/createPage');
+const generateProject = require('./src/createProject');
 
 commander
   .version('0.1.9')
