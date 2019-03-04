@@ -1,10 +1,10 @@
 {
-  "name": "sofa",
-  "version": "1.0.0",
-  "description": "## 开发注意事项",
+  "name": "sofa-tool",
+  "version": "0.0.4",
+  "description": "Sofa 辅助开发工具",
   "main": "index.js",
   "bin": {
-    "sofa": "sofa.js"
+    "sofa": "bin/sofa-tool.js"
   },
   "directories": {
     "lib": "lib"
@@ -31,6 +31,7 @@
     "escodegen": "^1.11.0",
     "esprima": "^4.0.1",
     "estraverse": "^4.2.0",
+    "inquirer": "^6.2.2",
     "metalsmith": "^2.3.0",
     "nodegit": "^0.24.0",
     "superagent": "^4.1.0"
