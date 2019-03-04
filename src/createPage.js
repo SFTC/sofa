@@ -31,7 +31,6 @@ const createPageConfig = {}; // pageName templatePath templateName parentKey
 
 // 交互-输入
 function readSyncByRl(tips) {
-  // eslint-disable-next-line
   tips = tips + '>' || '> ';
   return new Promise((resolve) => {
     inquirer.prompt([{
@@ -45,7 +44,6 @@ function readSyncByRl(tips) {
 }
 // 交互-确认
 function confirm(message) {
-  // eslint-disable-next-line
   message = message + '(y/n)' || '是否确认?' + '(y/n)';
   return new Promise((resolve) => {
     inquirer.prompt([{
@@ -57,36 +55,6 @@ function confirm(message) {
     });
   });
 }
-
-readSyncByRl('请输入页面名称').then((name) => {
-  if (typeof (name) === 'string') {
-    // eslint-disable-next-line
-    confirm('是否确认页面名称为' + name + '?').then((result) => {
-      if (result) {
-        // 2, 借助sofaConfig获取pageTemplatePath;
-        createPageConfig.pageName = name;
-        readSyncByRl('请输入页面中文名称').then((pageChineseName) => {
-          createPageConfig.pageChineseName = pageChineseName;
-          // eslint-disable-next-line
-          const templateFolderPath = path.resolve(process.cwd()) + '/' + sofaConfig.getConfig('pageTemplatePath');
-          // eslint-disable-next-line
-          listTheTemplates(templateFolderPath).then(() => {
-            // eslint-disable-next-line
-            const { pageName, templatePath, templateName, parentKey } = createPageConfig;
-            // eslint-disable-next-line
-            generatePage(pageName, templatePath, templateName, parentKey || null);
-          });
-        });
-        // console.log('*************创建完成***********');
-        // jsonStore.create(createPageConfig.user, createPageConfig);
-        // process.exit(0);
-        // return;
-      }
-      // console.log('*************结束***************');
-      // process.exit(0);
-    });
-  }
-});
 
 // 3. 列出所有模板选择 4. 是否有父级，指定父级key
 function listTheTemplates(templatePath) {
@@ -133,11 +101,9 @@ function listTheTemplates(templatePath) {
 
 // 5. 拷贝文件，获取用户git信息，嵌入注释；
 function generatePage(pageName, templatePath, templateName, parentKey) {
-  // eslint-disable-next-line
   const templateFullPath = path.resolve(templatePath + '/' + templateName);
   const metalsmith = Metalsmith(templateFullPath);
   const metadata = metalsmith.metadata();
-  // eslint-disable-next-line
   const destination = path.resolve(templatePath + '/' + fileName.getHeadUpperName(pageName));
   metadata.templateName = templateName;
   metadata.pageNameUpper = fileName.getHeadUpperName(pageName);
@@ -149,7 +115,6 @@ function generatePage(pageName, templatePath, templateName, parentKey) {
     createPageConfig.author = `<${user}>`;
   }).then(() => {
     metalsmith.clean(false)
-      // eslint-disable-next-line
       .use(updateContent)
       .source('.')
       .destination(destination)
@@ -195,4 +160,27 @@ function updateContent(files, metalsmith, callback) {
     });
   }
 }
+
+const generatePage = () => {
+  readSyncByRl('请输入页面名称').then((name) => {
+    if (typeof (name) === 'string') {
+      confirm('是否确认页面名称为' + name + '?').then((result) => {
+        if (result) {
+          // 2, 借助sofaConfig获取pageTemplatePath;
+          createPageConfig.pageName = name;
+          readSyncByRl('请输入页面中文名称').then((pageChineseName) => {
+            createPageConfig.pageChineseName = pageChineseName;
+            const templateFolderPath = path.resolve(process.cwd()) + '/' + sofaConfig.getConfig('pageTemplatePath');
+            listTheTemplates(templateFolderPath).then(() => {
+              const { pageName, templatePath, templateName, parentKey } = createPageConfig;
+              generatePage(pageName, templatePath, templateName, parentKey || null);
+            });
+          });
+        }
+      });
+    }
+  });
+}
+
+module.exports = generatePage;
 /* eslint-enable */
