@@ -10,7 +10,7 @@
  * step7. 处理Menu及国际化相关；
  * step8. 在Jsonstore中记录操作日志
  */
-
+/* eslint-disable */
 // 1，获取输入的页面名称
 const readline = require('readline');
 const sofaConfig = require('../lib/sofaConfig.js');
@@ -24,12 +24,14 @@ const consolidate = require('consolidate');
 const gitInfo = require('../lib/git');
 const comment = require('../lib/comment');
 const updateRelatedContent = require('../lib/updateRelatedContent');
+const jsonStore = require('../lib/jsonStore');
 
 // 与用户交互获取的配置值
 const createPageConfig = {}; // pageName templatePath templateName parentKey
 
 // 交互-输入
 function readSyncByRl(tips) {
+  // eslint-disable-next-line
   tips = tips + '>' || '> ';
   return new Promise((resolve) => {
     inquirer.prompt([{
@@ -43,6 +45,7 @@ function readSyncByRl(tips) {
 }
 // 交互-确认
 function confirm(message) {
+  // eslint-disable-next-line
   message = message + '(y/n)' || '是否确认?' + '(y/n)';
   return new Promise((resolve) => {
     inquirer.prompt([{
@@ -56,20 +59,26 @@ function confirm(message) {
 }
 
 readSyncByRl('请输入页面名称').then((name) => {
-  if (typeof(name) === 'string') {
+  if (typeof (name) === 'string') {
+    // eslint-disable-next-line
     confirm('是否确认页面名称为' + name + '?').then((result) => {
       if (result) {
         // 2, 借助sofaConfig获取pageTemplatePath;
         createPageConfig.pageName = name;
         readSyncByRl('请输入页面中文名称').then((pageChineseName) => {
           createPageConfig.pageChineseName = pageChineseName;
+          // eslint-disable-next-line
           const templateFolderPath = path.resolve(process.cwd()) + '/' + sofaConfig.getConfig('pageTemplatePath');
+          // eslint-disable-next-line
           listTheTemplates(templateFolderPath).then(() => {
+            // eslint-disable-next-line
             const { pageName, templatePath, templateName, parentKey } = createPageConfig;
+            // eslint-disable-next-line
             generatePage(pageName, templatePath, templateName, parentKey || null);
           });
         });
         // console.log('*************创建完成***********');
+        // jsonStore.create(createPageConfig.user, createPageConfig);
         // process.exit(0);
         // return;
       }
@@ -80,15 +89,15 @@ readSyncByRl('请输入页面名称').then((name) => {
 });
 
 // 3. 列出所有模板选择 4. 是否有父级，指定父级key
-function listTheTemplates(templatePath) { 
+function listTheTemplates(templatePath) {
   return new Promise((resolve) => {
     const arr = [];
     const files = fs.readdirSync(templatePath);
-    files.forEach(function (item, index) {
-        const stat = fs.lstatSync(path.join(templatePath, item));
-        if (stat.isDirectory() === true) { 
-          arr.push(item)
-        }
+    files.forEach((item) => {
+      const stat = fs.lstatSync(path.join(templatePath, item));
+      if (stat.isDirectory() === true) {
+        arr.push(item);
+      }
     });
     inquirer.prompt([{
       type: 'list',
@@ -101,13 +110,13 @@ function listTheTemplates(templatePath) {
       inquirer.prompt([{
         type: 'confirm',
         message: '该页面是否有父级？',
-        name: 'type'
+        name: 'type',
       }]).then(({ type }) => {
         if (type) {
           inquirer.prompt([{
             type: 'input',
             message: '请输入父模块的key值: ',
-            name: 'parent'
+            name: 'parent',
           }]).then(({ parent }) => {
             if (parent) {
               createPageConfig.parentKey = parent;
@@ -124,9 +133,11 @@ function listTheTemplates(templatePath) {
 
 // 5. 拷贝文件，获取用户git信息，嵌入注释；
 function generatePage(pageName, templatePath, templateName, parentKey) {
+  // eslint-disable-next-line
   const templateFullPath = path.resolve(templatePath + '/' + templateName);
   const metalsmith = Metalsmith(templateFullPath);
-  var metadata = metalsmith.metadata();
+  const metadata = metalsmith.metadata();
+  // eslint-disable-next-line
   const destination = path.resolve(templatePath + '/' + fileName.getHeadUpperName(pageName));
   metadata.templateName = templateName;
   metadata.pageNameUpper = fileName.getHeadUpperName(pageName);
@@ -134,39 +145,41 @@ function generatePage(pageName, templatePath, templateName, parentKey) {
   // 获取git信息
   gitInfo(['user'], (err, result) => {
     const user = result ? result.user : null;
-    console.log(`<${user}>`);
     metadata.author = `<${user}>`;
     createPageConfig.author = `<${user}>`;
   }).then(() => {
     metalsmith.clean(false)
-    .use(updateContent)
-    .source('.')
-    .destination(destination)
-    .build((err, files) => {
-      if (err) {
-        console.log(err);
-      } else {
-        console.log('Finish copy')
-        // 7. 处理Menu及国际化相关
-        updateRelatedContent(metadata.moduleName ? 'page' : 'module', createPageConfig).then((result) => {
-          console.log('menu commonMessages结束');
-        });
-      }
-    })
+      // eslint-disable-next-line
+      .use(updateContent)
+      .source('.')
+      .destination(destination)
+      .build((err, files) => {
+        if (err) {
+          console.log(err);
+        } else {
+          console.log('Finish copy')
+          // 7. 处理Menu及国际化相关
+          updateRelatedContent(metadata.moduleName ? 'page' : 'module', createPageConfig);
+          console.log(createPageConfig);
+          jsonStore.create('key', createPageConfig, true);
+          console.log('*************创建完成***********');
+          process.exit(0);
+        }
+      });
   });
 }
 
 function updateContent(files, metalsmith, callback) {
-  var keys = Object.keys(files);
-  var metadata = metalsmith.metadata();
+  const keys = Object.keys(files);
+  const metadata = metalsmith.metadata();
   async.each(keys, run, callback);
 
-  function run(file, callback){
-    var str = files[file].contents.toString();
+  function run(file, callback) {
+    let str = files[file].contents.toString();
     str = comment.removeDuplicate(str);
     // 加注释
     str = comment.generateComment(file, createPageConfig).concat(str);
-    consolidate.ejs.render(str, metadata, function(err, res){
+    consolidate.ejs.render(str, metadata, function(err, res) {
       if (err) {
         console.log('wrong', file, err);
         return callback(err);
@@ -182,3 +195,4 @@ function updateContent(files, metalsmith, callback) {
     });
   }
 }
+/* eslint-enable */
