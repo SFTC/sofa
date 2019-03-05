@@ -15,7 +15,6 @@ const chalk = require('chalk')
 const inquirer = require('inquirer')
 const fs = require('fs');
 const path = require('path');
-const Git = require("nodegit");
 const Metalsmith = require('metalsmith');
 const async = require('async')
 const consolidate = require('consolidate');
@@ -142,9 +141,8 @@ function generateProject() {
       // step2. 读取tool.config.js中的projectTemplatePath；
       const gitPath = toolConfig.projectTemplatePath;
       // step3. 拉取模板文件，拷贝文件，获取用户git信息，嵌入注释；
-      console.log(chalk.red(`正在从${gitPath}上拉取代码，请稍后......`));
-      Git.Clone(gitPath, `../${projectConfig.projectName}`).then((repo) => {
-        console.log('repo: ', repo);
+      console.log(chalk.red(`代码构建中，请稍后......`));
+      exec(`git clone https://github.com/SFTC/sofa-template.git ../${projectConfig.projectName}`, {encoding: 'utf8' }, (err, stdout, stderr) => {
         console.log(chalk.red('代码下载完成！'));
         // step4. 替换关键词ProjectName，这里需要注意替换 KeyWord、keyWord、keyword、KEYWORD等多种情形；
         runGeneratePage(projectConfig);
@@ -161,7 +159,7 @@ function generateProject() {
             });
           }
         });
-      })
+      });
     });
   })
 }

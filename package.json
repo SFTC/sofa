@@ -1,6 +1,6 @@
 {
   "name": "sofa-tool",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Sofa 辅助开发工具",
   "main": "index.js",
   "bin": {
@@ -33,11 +33,10 @@
     "estraverse": "^4.2.0",
     "inquirer": "^6.2.2",
     "metalsmith": "^2.3.0",
-    "nodegit": "^0.24.0",
-    "superagent": "^4.1.0"
-  },
-  "devDependencies": {
+    "superagent": "^4.1.0",
     "prettier": "^1.12.0",
     "prettier-eslint": "^8.8.2"
+  },
+  "devDependencies": {
   }
 }
