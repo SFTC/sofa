@@ -143,7 +143,7 @@ function generateComponent() {
               gitInfo(['user'], (err, result) => {
                 const user = result ? result.user : null;
                 copyTemplate(componentName, user).then(() => {
-                  JsonStore.create(componentName);
+                  JsonStore.createComponent(componentName);
                 }).catch((err) => {
                   console.log(err);
                 });
