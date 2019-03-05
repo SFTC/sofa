@@ -20,6 +20,7 @@ const template = require('../utils/template');
 const Utils = require('../utils/utils');
 const config = require('../conf/default.config');
 const fileOperates = require('../utils/fileOperates');
+const gitInfo = require('../lib/git');
 
 const chalk = require('chalk');
 const JsonStore = require('../lib/jsonStore');
@@ -86,9 +87,9 @@ function updateContent(files, metalsmith, callback) {
 function copyPackage(params) {
   const pureName = params.PureName;
 
-  const templatePackagePath = template.checkTemplateVersion();
-  const templatePath = path.join(templatePackagePath, config.componentTemplatePath, config.defaultComponentTemplateName);
-  const destPath = path.resolve(process.cwd(), config.componentTemplatePath, params.ComponentName);
+  // const templatePackagePath = template.checkTemplateVersion();
+  const templatePath = path.join(config.componentTemplatePath, config.defaultComponentTemplateName);
+  const destPath = path.resolve(config.componentTemplatePath, params.ComponentName);
 
   const metalsmith = Metalsmith(templatePath);
   const metadata = metalsmith.metadata();
@@ -139,10 +140,13 @@ function generateComponent() {
           componentName = name;
           JsonStore.search(componentName).then((res) => {
             if (res) { // create
-              copyTemplate(componentName).then(() => {
-                JsonStore.create(componentName);
-              }).catch((err) => {
-                console.log(err);
+              gitInfo(['user'], (err, result) => {
+                const user = result ? result.user : null;
+                copyTemplate(componentName, user).then(() => {
+                  JsonStore.create(componentName);
+                }).catch((err) => {
+                  console.log(err);
+                });
               });
             } else {
               console.log(chalk.yellow(`${componentName} is already exist, please change a other name , or run *sofa -d ${componentName}* to delete the declare`));

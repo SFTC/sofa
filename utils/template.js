@@ -7,8 +7,8 @@ const Template = {};
 
 Template.getTemplatePackagePath = function() {
   const testPath = [
-    path.resolve(__dirname, '../node_modules', config.templatePackage),
-    path.resolve(__dirname, '../../', config.templatePackage),
+    path.resolve(config.componentTemplatePath),
+    path.resolve(config.componentTemplatePath),
   ]
   try {
     fs.accessSync(testPath[0],fs.constants.F_OK);
