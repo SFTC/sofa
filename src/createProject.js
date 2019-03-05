@@ -14,6 +14,7 @@
 const chalk = require('chalk')
 const inquirer = require('inquirer')
 const fs = require('fs');
+const path = require('path');
 const { exec } = require('child_process');
 
 const config = require('../conf/default.config');
@@ -32,7 +33,7 @@ function inquireUser(projectName) {
       default: projectName,
       name: 'projectName',
     }]).then(({ projectName }) => {
-      if (fs.existsSync(`../${projectName}`)) {
+      if (fs.existsSync(path.join(process.cwd(), projectName))) {
         console.log(chalk.red('当前路径下该工程已存在，请重新创建！'));
         return;
       }
@@ -73,8 +74,8 @@ function inquireUser(projectName) {
 }
 
 function runGeneratePage(projectConfig) {
-  const README = `../${projectConfig.projectName}/README.md`;
-  const package = `../${projectConfig.projectName}/package.json`;
+  const README = path.join(process.cwd(), `./${projectConfig.projectName}/README.md`);
+  const package = path.join(process.cwd(), `./${projectConfig.projectName}/package.json`);
   const files = [README, package];
 
   const replaceKey = projectConfig.templateInfo.key || projectConfig.templateName;
@@ -93,17 +94,18 @@ function runGeneratePage(projectConfig) {
 }
 
 function setUserConfig(projectConfig) {
-  const path = `../${projectConfig.projectName}`;
-  sofaConfig.setConfig('projectName', projectConfig.projectName, path);
-  sofaConfig.setConfig('port', projectConfig.port, path);
-  sofaConfig.setConfig('theme', projectConfig.theme, path);
+  const projectPath = path.join(process.cwd(), projectConfig.projectName);
+  sofaConfig.setConfig('projectName', projectConfig.projectName, projectPath);
+  sofaConfig.setConfig('port', projectConfig.port, projectPath);
+  sofaConfig.setConfig('theme', projectConfig.theme, projectPath);
 }
 
 function installDependencies(projectConfig) {
+  const projectPath = path.join(process.cwd(), projectConfig.projectName);
   return new Promise((resolve) => {
     // 在工程里执行npm install命令
     console.log(chalk.yellow('安装依赖，请稍后......'));
-    exec('npm install', { cwd: `../${projectConfig.projectName}` }, (err, stdout, stderr) => {
+    exec('npm install', { cwd: projectPath }, (err, stdout, stderr) => {
       if(err) {
         console.log(err);
         resolve('fail');
@@ -117,10 +119,11 @@ function installDependencies(projectConfig) {
 }
 
 function startProject(projectConfig) {
+  const projectPath = path.join(process.cwd(), projectConfig.projectName);
   return new Promise((resolve) => {
     // 在工程里执行npm install命令
     console.log(chalk.yellow('正在启动...'));
-    let workerProcess = exec('npm start', { cwd: `../${projectConfig.projectName}` }, (err, stdout, stderr) => {
+    let workerProcess = exec('npm start', { cwd: projectPath }, (err, stdout, stderr) => {
       if(err) {
         console.log(err);
         resolve('fail');
@@ -149,10 +152,11 @@ function generateProject(projectName) {
     // step1. 与用户交互获取，项目名称、主题色、开发端口等信息；
     inquireUser(projectName).then((projectConfig) => {
       // step2. 读取tool.config.js中的projectTemplatePath；
+      const projectPath = path.join(process.cwd(), projectConfig.projectName);
       const gitPath = projectConfig.templateInfo.path;
       // step3. 拉取模板文件，拷贝文件，获取用户git信息，嵌入注释；
       console.log(chalk.yellow(`代码构建中，请稍后......`));
-      exec(`git clone ${gitPath} ../${projectConfig.projectName}`, {encoding: 'utf8' }, (err, stdout, stderr) => {
+      exec(`git clone ${gitPath} ${projectPath}`, {encoding: 'utf8' }, (err, stdout, stderr) => {
         console.log(chalk.green('代码初始化完成！'));
         // step4. 替换关键词ProjectName，这里需要注意替换 KeyWord、keyWord、keyword、KEYWORD等多种情形；
         runGeneratePage(projectConfig);
