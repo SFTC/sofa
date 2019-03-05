@@ -1,6 +1,6 @@
 {
   "name": "sofa-tool",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Sofa 辅助开发工具",
   "main": "index.js",
   "bin": {
