@@ -161,7 +161,7 @@ function updateContent(files, metalsmith, callback) {
   }
 }
 
-const generatePage = () => {
+const generateSofaPage = () => {
   readSyncByRl('请输入页面名称').then((name) => {
     if (typeof (name) === 'string') {
       confirm('是否确认页面名称为' + name + '?').then((result) => {
@@ -170,9 +170,12 @@ const generatePage = () => {
           createPageConfig.pageName = name;
           readSyncByRl('请输入页面中文名称').then((pageChineseName) => {
             createPageConfig.pageChineseName = pageChineseName;
-            const templateFolderPath = path.resolve(process.cwd()) + '/' + sofaConfig.getConfig('pageTemplatePath');
+            const templateFolderPath = process.cwd() + '/' + sofaConfig.getConfig(process.cwd()).pageTemplatePath;
+            console.log(process.cwd());
+            console.log(templateFolderPath);
             listTheTemplates(templateFolderPath).then(() => {
-              const { pageName, templatePath, templateName, parentKey } = createPageConfig;
+              // console.log(templatePath);
+              const { pageName, templateName, parentKey, templatePath } = createPageConfig;
               generatePage(pageName, templatePath, templateName, parentKey || null);
             });
           });
@@ -182,5 +185,7 @@ const generatePage = () => {
   });
 }
 
-module.exports = generatePage;
+module.exports = generateSofaPage;
+// generateSofaPage();
+
 /* eslint-enable */
