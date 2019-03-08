@@ -12,13 +12,14 @@
  */
 /* eslint-disable */
 // 1，获取输入的页面名称
-const readline = require('readline');
 const sofaConfig = require('../lib/sofaConfig.js');
 const fs = require('fs');
 const path = require('path');
 const inquirer = require('inquirer');
 const Metalsmith = require('metalsmith');
-const fileName = require('../lib/fileName');
+const fileName = require('../utils/fileName');
+const log = require('../utils/log');
+
 const async = require('async');
 const consolidate = require('consolidate');
 const gitInfo = require('../lib/git');
@@ -58,8 +59,12 @@ function confirm(message) {
 
 // 3. 列出所有模板选择 4. 是否有父级，指定父级key
 function listTheTemplates(templatePath) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const arr = [];
+    if (!fs.existsSync(templatePath)) {
+      log.error('无法找到页面插入路径，请确认当前路径');
+      reject('path error');
+    }
     const files = fs.readdirSync(templatePath);
     files.forEach((item) => {
       const stat = fs.lstatSync(path.join(templatePath, item));
@@ -101,12 +106,13 @@ function listTheTemplates(templatePath) {
 
 // 5. 拷贝文件，获取用户git信息，嵌入注释；
 function generatePage(pageName, templatePath, templateName, parentKey) {
-  const templateFullPath = path.resolve(templatePath + '/' + templateName);
+  const templateFullPath = path.resolve(templatePath, templateName);
   const metalsmith = Metalsmith(templateFullPath);
   const metadata = metalsmith.metadata();
-  const destination = path.resolve(templatePath + '/' + fileName.getHeadUpperName(pageName));
+  const destination = path.resolve(templatePath, fileName.getHeadUpper(pageName));
+
   metadata.templateName = templateName;
-  metadata.pageNameUpper = fileName.getHeadUpperName(pageName);
+  metadata.pageNameUpper = fileName.getHeadUpper(pageName);
   metadata.moduleName = parentKey;
   // 获取git信息
   gitInfo(['user'], (err, result) => {
@@ -141,9 +147,8 @@ function updateContent(files, metalsmith, callback) {
 
   function run(file, callback) {
     let str = files[file].contents.toString();
-    str = comment.removeDuplicate(str);
-    // 加注释
-    str = comment.generateComment(file, createPageConfig).concat(str);
+    str = comment.generateComment(file, createPageConfig) + str;
+
     consolidate.ejs.render(str, metadata, function(err, res) {
       if (err) {
         console.log('wrong', file, err);
@@ -151,7 +156,7 @@ function updateContent(files, metalsmith, callback) {
       }
       console.log('success', file);
       // 6. 替换 KeyWord、keyWord、keyword、KEYWORD等多种情形
-      res = res.replace(new RegExp(fileName.getHeadUpperName(metadata.templateName), 'g'), fileName.getHeadUpperName(createPageConfig.pageName))
+      res = res.replace(new RegExp(fileName.getHeadUpper(metadata.templateName), 'g'), fileName.getHeadUpper(createPageConfig.pageName))
                .replace(new RegExp(fileName.getHeadLower(metadata.templateName), 'g'), fileName.getHeadLower(metadata.pageNameUpper))
                .replace(new RegExp(fileName.getFullUpper(metadata.templateName), 'g'), fileName.getFullUpper(metadata.pageNameUpper))
                .replace(new RegExp(fileName.getFullLower(metadata.templateName), 'g'), fileName.getFullLower(metadata.pageNameUpper))
@@ -170,11 +175,9 @@ const generateSofaPage = () => {
           createPageConfig.pageName = name;
           readSyncByRl('请输入页面中文名称').then((pageChineseName) => {
             createPageConfig.pageChineseName = pageChineseName;
-            const templateFolderPath = process.cwd() + '/' + sofaConfig.getConfig(process.cwd()).pageTemplatePath;
-            console.log(process.cwd());
-            console.log(templateFolderPath);
+            const templateFolderPath = path.join(process.cwd(), sofaConfig.getConfig(process.cwd()).pageTemplatePath);
+
             listTheTemplates(templateFolderPath).then(() => {
-              // console.log(templatePath);
               const { pageName, templateName, parentKey, templatePath } = createPageConfig;
               generatePage(pageName, templatePath, templateName, parentKey || null);
             });
@@ -186,6 +189,3 @@ const generateSofaPage = () => {
 }
 
 module.exports = generateSofaPage;
-// generateSofaPage();
-
-/* eslint-enable */

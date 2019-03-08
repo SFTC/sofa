@@ -160,5 +160,4 @@ function generateComponent() {
   });
 }
 
-// module.exports = generateComponent;
-generateComponent();
+module.exports = generateComponent;

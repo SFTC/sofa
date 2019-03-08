@@ -34,7 +34,6 @@
     "esprima": "^4.0.1",
     "estraverse": "^4.2.0",
     "metalsmith": "^2.3.0",
-    "nodegit": "^0.24.0",
     "fs": "^0.0.1-security",
     "path": "^0.12.7",
     "inquirer": "^6.2.2",
